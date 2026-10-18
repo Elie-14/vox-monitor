@@ -1,0 +1,10 @@
+.env
+*.db
+*.db-journal
+*.log
+logs/
+.venv/
+__pycache__/
+.pytest_cache/
+companion_state.json
+state_data/

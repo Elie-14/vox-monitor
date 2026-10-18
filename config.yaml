@@ -1,0 +1,85 @@
+# ---- What to watch ---------------------------------------------------------
+movie:
+  display_name: "Avengers: Doomsday"
+vox:
+  base_url: "https://egy.voxcinemas.com"
+  # Two listings exist on VOX Egypt (seen 18 Oct 2026). Both are watched.
+  target_slugs: ["avengers-doomsday", "avengers-doomsday-infinity-vision"]
+  user_agent: "vox-avengers-monitor/1.0 (personal ticket alert; polite, rate-limited)"
+  request_timeout_seconds: 15
+  respect_robots: true
+  max_requests_per_hour: 150      # hard local cap (safe fallback)
+  backoff_base_seconds: 30
+  backoff_cap_seconds: 3600
+
+# ---- Polling policy (seconds). GitHub Actions cannot go below ~5 min between runs. -------------
+schedule:
+  normal_seconds: 300
+  elevated_seconds: 120
+  high_seconds: 75
+  post_confirmation_seconds: 3600
+  min_seconds: 60                  # never poll faster than this
+
+# ---- State machine / alerting ---------------------------------------------
+detection:
+  miss_threshold: 3                # consecutive "not bookable" reads before CONFIRMED -> TEMPORARILY_UNAVAILABLE
+  realert_on_reopen: true          # new critical alert if tickets vanish and genuinely reopen
+social_signal_window_hours: 48
+degraded_after_minutes: 45         # alert me if the VOX page has not been read OK for this long
+critical_sources: ["vox_whatson"]
+
+notifications:
+  email: true
+  ntfy: true                       # phone push + Windows companion (free)
+  telegram: false                  # optional free phone push
+  whatsapp: false                  # official API; costs money since 1 Oct 2026 -> keep false unless you approve
+  max_attempts_per_channel: 10
+
+# ---- Source registry (be honest about what is actually monitored) ---------------------------
+sources:
+  - id: facebook_voxcinemasegypt
+    platform: Facebook
+    profile_url: "https://www.facebook.com/voxcinemasegypt"
+    verified_via: "linked from the footer of egy.voxcinemas.com and from linktr.ee/vox_cinemas"
+    method: manual
+    trusted: true
+    enabled: false
+    limitation: "No free public API/feed for third-party Pages without login; scraping is not done. Use the Facebook app: Follow > Notifications > All posts."
+  - id: instagram_voxcinemasegypt
+    platform: Instagram
+    profile_url: "https://www.instagram.com/voxcinemasegypt"
+    verified_via: "linked from the footer of egy.voxcinemas.com and from linktr.ee/vox_cinemas"
+    method: manual
+    trusted: true
+    enabled: false
+    limitation: "Login wall / API needs account ownership. Use the Instagram app: bell icon > Posts and Stories."
+  - id: tiktok_vox_egypt
+    platform: TikTok
+    profile_url: ""
+    verified_via: "linktr.ee/vox_cinemas lists a TikTok link but the exact handle was not exposed in the page text"
+    method: manual
+    trusted: true
+    enabled: false
+    limitation: "Handle unverified; no free official feed. Open the Linktree and follow the TikTok link manually."
+  - id: youtube_voxcinemas
+    platform: YouTube
+    profile_url: "https://www.youtube.com/user/voxcinemas"
+    verified_via: "linked from the footer of egy.voxcinemas.com (may be the regional channel, not Egypt-only)"
+    method: rss
+    # Paste the channel RSS URL here once you confirm the channel ID:
+    #   https://www.youtube.com/feeds/videos.xml?channel_id=UCxxxxxxxxxxxxxxxxxxxxxx
+    feed_url: ""
+    trusted: true
+    enabled: false
+    interval_seconds: 900
+    limitation: "Free RSS, but needs the channel ID (not verified). Disabled until you add feed_url."
+  - id: news_discovery
+    platform: Google News RSS (discovery only)
+    profile_url: "https://news.google.com/"
+    verified_via: "n/a - independent discovery, never treated as official"
+    method: rss
+    feed_url: "https://news.google.com/rss/search?q=%22Avengers+Doomsday%22+VOX+Egypt&hl=en-EG&gl=EG&ceid=EG:en"
+    trusted: false                 # untrusted: can never trigger an alert by itself
+    enabled: true
+    interval_seconds: 1800
+    limitation: "Low confidence. Only used to raise the polling rate; unrelated or non-Egypt news is ignored by the trust rule."
