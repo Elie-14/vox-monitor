@@ -1,0 +1,47 @@
+name: vox-monitor
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: vox-monitor
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - name: Restore state branch
+        run: |
+          git fetch origin monitor-state:monitor-state 2>/dev/null || true
+          if git rev-parse --verify monitor-state >/dev/null 2>&1; then
+            git show monitor-state:monitor.db > monitor.db 2>/dev/null || true
+          fi
+      - name: Run monitor
+        env:
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "465"
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          HEALTHCHECK_PING_URL: ${{ secrets.HEALTHCHECK_PING_URL }}
+        run: python main.py loop --duration 270
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "vox-monitor-bot"
+          git config user.email "vox-monitor-bot@users.noreply.github.com"
+          rm -rf /tmp/state && mkdir /tmp/state && cp monitor.db /tmp/state/ 2>/dev/null || exit 0
+          git checkout --orphan state-tmp && git rm -rf . >/dev/null 2>&1
+          cp /tmp/state/monitor.db . && git add -f monitor.db
+          git commit -m "state $(date -u +%FT%TZ)" >/dev/null
+          git push -f origin state-tmp:monitor-state
