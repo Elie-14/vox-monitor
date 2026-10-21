@@ -6,7 +6,7 @@ vox:
   # Two listings exist on VOX Egypt (seen 18 Oct 2026). Both are watched.
   target_slugs: ["avengers-doomsday", "avengers-doomsday-infinity-vision"]
   user_agent: "vox-avengers-monitor/1.0 (personal ticket alert; polite, rate-limited)"
-  request_timeout_seconds: 15
+  request_timeout_seconds: 30
   respect_robots: true
   max_requests_per_hour: 150      # hard local cap (safe fallback)
   backoff_base_seconds: 30
