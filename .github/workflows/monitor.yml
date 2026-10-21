@@ -1,17 +1,18 @@
 name: vox-monitor
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "17,47 * * * *"
   workflow_dispatch: {}
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: vox-monitor
   cancel-in-progress: false
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,7 +24,7 @@ jobs:
           if git rev-parse --verify monitor-state >/dev/null 2>&1; then
             git show monitor-state:monitor.db > monitor.db 2>/dev/null || true
           fi
-      - name: Run monitor
+      - name: Run monitor (about 5h40m)
         env:
           SMTP_HOST: smtp.gmail.com
           SMTP_PORT: "465"
@@ -34,7 +35,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           HEALTHCHECK_PING_URL: ${{ secrets.HEALTHCHECK_PING_URL }}
-        run: python main.py loop --duration 270
+        run: python main.py loop --duration 20400
       - name: Save state
         if: always()
         run: |
@@ -45,3 +46,8 @@ jobs:
           cp /tmp/state/monitor.db . && git add -f monitor.db
           git commit -m "state $(date -u +%FT%TZ)" >/dev/null
           git push -f origin state-tmp:monitor-state
+      - name: Start the next run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run monitor.yml --ref main
